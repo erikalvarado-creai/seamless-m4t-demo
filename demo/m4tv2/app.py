@@ -1,3 +1,4 @@
+--------------------------------------------------------------------------------
 #!/usr/bin/env python
 # Copyright (c) Meta Platforms, Inc. and affiliates
 # All rights reserved.
@@ -10,6 +11,7 @@ from __future__ import annotations
 import os
 import pathlib
 import getpass
+import traceback
 
 import gradio as gr
 import numpy as np
@@ -29,7 +31,7 @@ from lang_list import (
     TEXT_SOURCE_LANGUAGE_NAMES,
 )
 
-user = getpass.getuser() # this is not portable on windows
+user = getpass.getuser()  # this may be non-portable on Windows
 CHECKPOINTS_PATH = pathlib.Path(os.getenv("CHECKPOINTS_PATH", f"/home/{user}/app/models"))
 if not CHECKPOINTS_PATH.exists():
     snapshot_download(repo_id="facebook/seamless-m4t-v2-large", repo_type="model", local_dir=CHECKPOINTS_PATH)
@@ -48,13 +50,7 @@ demo_metadata = [
 ]
 asset_store.metadata_providers.append(InProcAssetMetadataProvider(demo_metadata))
 
-DESCRIPTION = """\
-# SeamlessM4T
-[SeamlessM4T](https://github.com/facebookresearch/seamless_communication) is designed to provide high-quality
-translation, allowing people from different linguistic communities to communicate effortlessly through speech and text.
-This unified model enables multiple tasks like Speech-to-Speech (S2ST), Speech-to-Text (S2TT), Text-to-Speech (T2ST)
-translation and more, without relying on multiple separate models.
-"""
+DESCRIPTION = "# SeamlessM4T is designed to provide high-quality translation"
 
 CACHE_EXAMPLES = os.getenv("CACHE_EXAMPLES") == "1" and torch.cuda.is_available()
 
@@ -91,76 +87,112 @@ def preprocess_audio(input_audio: str) -> None:
 def run_s2st(
     input_audio: str, source_language: str, target_language: str
 ) -> tuple[tuple[int, np.ndarray] | None, str]:
-    preprocess_audio(input_audio)
-    source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
-    target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
-    out_texts, out_audios = translator.predict(
-        input=input_audio,
-        task_str="S2ST",
-        src_lang=source_language_code,
-        tgt_lang=target_language_code,
-    )
-    out_text = str(out_texts[0])
-    out_wav = out_audios.audio_wavs[0].cpu().detach().numpy()
-    return (int(AUDIO_SAMPLE_RATE), out_wav), out_text
+    try:
+        print(f"[run_s2st] Starting with input_audio='{input_audio}'  src='{source_language}'  tgt='{target_language}'")
+        preprocess_audio(input_audio)
+        source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
+        target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
+        print("[run_s2st] Calling translator.predict(...)")
+        out_texts, out_audios = translator.predict(
+            input=input_audio,
+            task_str="S2ST",
+            src_lang=source_language_code,
+            tgt_lang=target_language_code,
+        )
+        print(f"[run_s2st] translator returned out_texts={out_texts} out_audios={out_audios}")
+        out_text = str(out_texts[0])
+        out_wav = out_audios.audio_wavs[0].cpu().detach().numpy()
+        return (int(AUDIO_SAMPLE_RATE), out_wav), out_text
+    except Exception as e:
+        traceback.print_exc()
+        return None, f"Error: {e}"
 
 
 def run_s2tt(input_audio: str, source_language: str, target_language: str) -> str:
-    preprocess_audio(input_audio)
-    source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
-    target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
-    out_texts, _ = translator.predict(
-        input=input_audio,
-        task_str="S2TT",
-        src_lang=source_language_code,
-        tgt_lang=target_language_code,
-    )
-    return str(out_texts[0])
+    try:
+        print(f"[run_s2tt] Starting with input_audio='{input_audio}'  src='{source_language}'  tgt='{target_language}'")
+        preprocess_audio(input_audio)
+        source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
+        target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
+        print("[run_s2tt] Calling translator.predict(...)")
+        out_texts, _ = translator.predict(
+            input=input_audio,
+            task_str="S2TT",
+            src_lang=source_language_code,
+            tgt_lang=target_language_code,
+        )
+        print(f"[run_s2tt] translator returned out_texts={out_texts}")
+        return str(out_texts[0])
+    except Exception as e:
+        traceback.print_exc()
+        return f"Error: {e}"
 
 
 def run_t2st(input_text: str, source_language: str, target_language: str) -> tuple[tuple[int, np.ndarray] | None, str]:
-    source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
-    target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
-    out_texts, out_audios = translator.predict(
-        input=input_text,
-        task_str="T2ST",
-        src_lang=source_language_code,
-        tgt_lang=target_language_code,
-    )
-    out_text = str(out_texts[0])
-    out_wav = out_audios.audio_wavs[0].cpu().detach().numpy()
-    return (int(AUDIO_SAMPLE_RATE), out_wav), out_text
+    try:
+        print(f"[run_t2st] Starting with input_text='{input_text}'  src='{source_language}'  tgt='{target_language}'")
+        source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
+        target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
+        print("[run_t2st] Calling translator.predict(...)")
+        out_texts, out_audios = translator.predict(
+            input=input_text,
+            task_str="T2ST",
+            src_lang=source_language_code,
+            tgt_lang=target_language_code,
+        )
+        print(f"[run_t2st] translator returned out_texts={out_texts} out_audios={out_audios}")
+        out_text = str(out_texts[0])
+        out_wav = out_audios.audio_wavs[0].cpu().detach().numpy()
+        return (int(AUDIO_SAMPLE_RATE), out_wav), out_text
+    except Exception as e:
+        traceback.print_exc()
+        return None, f"Error: {e}"
 
 
 def run_t2tt(input_text: str, source_language: str, target_language: str) -> str:
-    source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
-    target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
-    out_texts, _ = translator.predict(
-        input=input_text,
-        task_str="T2TT",
-        src_lang=source_language_code,
-        tgt_lang=target_language_code,
-    )
-    return str(out_texts[0])
+    try:
+        print(f"[run_t2tt] Starting with input_text='{input_text}'  src='{source_language}'  tgt='{target_language}'")
+        source_language_code = LANGUAGE_NAME_TO_CODE[source_language]
+        target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
+        print("[run_t2tt] Calling translator.predict(...)")
+        out_texts, _ = translator.predict(
+            input=input_text,
+            task_str="T2TT",
+            src_lang=source_language_code,
+            tgt_lang=target_language_code,
+        )
+        print(f"[run_t2tt] translator returned out_texts={out_texts}")
+        return str(out_texts[0])
+    except Exception as e:
+        traceback.print_exc()
+        return f"Error: {e}"
 
 
 def run_asr(input_audio: str, target_language: str) -> str:
-    preprocess_audio(input_audio)
-    target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
-    out_texts, _ = translator.predict(
-        input=input_audio,
-        task_str="ASR",
-        src_lang=target_language_code,
-        tgt_lang=target_language_code,
-    )
-    return str(out_texts[0])
+    try:
+        print(f"[run_asr] Starting with input_audio='{input_audio}'  tgt='{target_language}'")
+        preprocess_audio(input_audio)
+        target_language_code = LANGUAGE_NAME_TO_CODE[target_language]
+        print("[run_asr] Calling translator.predict(...)")
+        out_texts, _ = translator.predict(
+            input=input_audio,
+            task_str="ASR",
+            src_lang=target_language_code,
+            tgt_lang=target_language_code,
+        )
+        print(f"[run_asr] translator returned out_texts={out_texts}")
+        return str(out_texts[0])
+    except Exception as e:
+        traceback.print_exc()
+        return f"Error: {e}"
 
 
 with gr.Blocks() as demo_s2st:
     with gr.Row():
         with gr.Column():
             with gr.Group():
-                input_audio = gr.Audio(label="Input speech", type="filepath")
+                # Added source="microphone" to enable recording
+                input_audio = gr.Audio(label="Input speech", type="filepath", source="microphone")
                 source_language = gr.Dropdown(
                     label="Source language",
                     choices=ASR_TARGET_LANGUAGE_NAMES,
@@ -202,7 +234,8 @@ with gr.Blocks() as demo_s2tt:
     with gr.Row():
         with gr.Column():
             with gr.Group():
-                input_audio = gr.Audio(label="Input speech", type="filepath")
+                # Added source="microphone" to enable recording
+                input_audio = gr.Audio(label="Input speech", type="filepath", source="microphone")
                 source_language = gr.Dropdown(
                     label="Source language",
                     choices=ASR_TARGET_LANGUAGE_NAMES,
@@ -326,19 +359,20 @@ with gr.Blocks() as demo_t2tt:
         api_name="t2tt",
     )
 
-with gr.Blocks() as demo_asr:
+with gr.Blocks(css="style.css") as demo_asr:
     with gr.Row():
         with gr.Column():
             with gr.Group():
-                input_audio = gr.Audio(label="Input speech", type="filepath")
+                # Added source="microphone" to enable recording
+                input_audio = gr.Audio(label="Input speech", type="filepath", source="microphone")
                 target_language = gr.Dropdown(
                     label="Target language",
                     choices=ASR_TARGET_LANGUAGE_NAMES,
                     value=DEFAULT_TARGET_LANGUAGE,
                 )
-            btn = gr.Button("Translate")
+            btn = gr.Button("Transcribe/Translate")
         with gr.Column():
-            output_text = gr.Textbox(label="Translated text")
+            output_text = gr.Textbox(label="Output text")
 
     gr.Examples(
         examples=[],
