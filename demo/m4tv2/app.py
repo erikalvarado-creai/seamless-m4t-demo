@@ -269,8 +269,14 @@ with gr.Blocks() as demo_t2st:
         api_name=False,
     )
 
-    gr.on(
-        triggers=[input_text.submit, btn.click],
+    input_text.submit(
+        fn=run_t2st,
+        inputs=[input_text, source_language, target_language],
+        outputs=[output_audio, output_text],
+        api_name=False,
+    )
+
+    btn.click(
         fn=run_t2st,
         inputs=[input_text, source_language, target_language],
         outputs=[output_audio, output_text],
@@ -306,8 +312,14 @@ with gr.Blocks() as demo_t2tt:
         api_name=False,
     )
 
-    gr.on(
-        triggers=[input_text.submit, btn.click],
+    input_text.submit(
+        fn=run_t2tt,
+        inputs=[input_text, source_language, target_language],
+        outputs=output_text,
+        api_name=False,
+    )
+
+    btn.click(
         fn=run_t2tt,
         inputs=[input_text, source_language, target_language],
         outputs=output_text,
@@ -344,7 +356,6 @@ with gr.Blocks() as demo_asr:
         api_name="asr",
     )
 
-
 with gr.Blocks(css="style.css") as demo:
     gr.Markdown(DESCRIPTION)
     gr.DuplicateButton(
@@ -367,4 +378,4 @@ with gr.Blocks(css="style.css") as demo:
 
 
 if __name__ == "__main__":
-    demo.queue(max_size=50).launch()
+    demo.queue(max_size=50).launch(share=True, debug=True)
